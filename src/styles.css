@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  color-scheme: light;
+  font-family: 'DM Sans', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  --text: #272522;
+  --muted: #89847f;
+  --line: #ece9e6;
+  --surface: #fff;
+  --accent: #e07053;
+  --accent-dark: #c95d43;
+  --danger: #b94a36;
+  --success: #34825a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(ellipse at 50% 7%, rgb(245 225 214 / 42%), transparent 48%),
+    #fcfbf9;
+  color: var(--text);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+.shorten-form:focus-within {
+  outline: 3px solid rgb(224 112 83 / 36%);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: #f8d9cf;
+}
