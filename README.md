@@ -1,6 +1,6 @@
 # Snip frontend
 
-Angular 19 client for the Snip URL shortener. It uses the shared API at
+Angular 21 client for the Snip URL shortener. It uses the shared API at
 `http://localhost:3000` by default.
 
 ## Run locally
