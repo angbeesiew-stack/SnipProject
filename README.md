@@ -46,6 +46,8 @@ The backend listens on port 3000 by default; the Angular development server uses
 
 The bundle workflow runs hourly or manually, not on push: source branch pushes do not trigger a workflow that exists only on `main`. The Docker workflow watches the `bundle` gitlink on `main` and can also be started manually. Because an Actions push made with `GITHUB_TOKEN` does not trigger a second push workflow, the bundle workflow explicitly dispatches the Docker workflow after its push.
 
+Before pushing either GHCR tag (`latest` and the short commit SHA), Docker CI audits the frontend dependency lockfile and scans the built image for high and critical vulnerabilities. Both scans must pass; a scan failure blocks publishing.
+
 ## Updating a component
 
 Commit and push changes from inside that component's checkout, then update and commit the submodule pointer from `main`:

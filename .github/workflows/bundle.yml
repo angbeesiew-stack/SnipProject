@@ -1,0 +1,79 @@
+name: Build bundle
+
+on:
+  # This workflow is on main only, so pushes to the component branches cannot trigger it.
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          submodules: true
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: oven-sh/setup-bun@v2
+      - name: Configure Git identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Test frontend
+        run: |
+          npm install --prefix frontend
+          npm test --prefix frontend -- --watch=false --browsers=ChromeHeadless
+      - name: Build bundle and test CLI
+        run: node scripts/build-bundle.mjs
+      - name: Smoke-test the bundled API and UI
+        shell: bash
+        run: |
+          cd bundle
+          bun server.js > /tmp/snip.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:3000/api/links >/dev/null; then break; fi
+            sleep 1
+          done
+          node --input-type=module <<'NODE'
+          const base = "http://127.0.0.1:3000";
+          const page = await fetch(base);
+          if (!page.ok || !(await page.text()).includes("<html")) throw new Error("UI did not load");
+          const createdResponse = await fetch(`${base}/api/links`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ url: "https://example.com/" }),
+          });
+          if (createdResponse.status !== 201) throw new Error("Create did not return 201");
+          const created = await createdResponse.json();
+          const listed = await (await fetch(`${base}/api/links`)).json();
+          if (!listed.some((link) => link.code === created.code)) throw new Error("Created link missing from list");
+          const redirect = await fetch(`${base}/${created.code}`, { redirect: "manual" });
+          if (redirect.status !== 302 || redirect.headers.get("location") !== created.url) {
+            throw new Error("Redirect contract failed");
+          }
+          const after = await (await fetch(`${base}/api/links`)).json();
+          if (after.find((link) => link.code === created.code)?.hits !== 1) {
+            throw new Error("Redirect did not increment hits");
+          }
+          console.log("Bundled UI and API smoke test passed.");
+          NODE
+          cd ../cli
+          node cli.js ls
+      - name: Push bundle and main, then dispatch Docker workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/build-bundle.mjs --push
+          gh workflow run docker.yml --ref main

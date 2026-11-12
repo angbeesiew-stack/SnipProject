@@ -1,0 +1,78 @@
+name: Build and push image
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - bundle
+      - .github/workflows/docker.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/snipproject
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+      - name: Build local image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./bundle
+          load: true
+          tags: ${{ steps.meta.outputs.tags }}
+      - name: Scan frontend dependencies
+        id: dependency-scan
+        continue-on-error: true
+        run: npm audit --prefix frontend --audit-level=high
+      - name: Scan image
+        id: image-scan
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: image
+          image-ref: ghcr.io/${{ github.repository_owner }}/snipproject:latest
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+      - name: Block publishing if either security scan fails
+        if: always()
+        env:
+          DEPENDENCY_SCAN: ${{ steps.dependency-scan.outcome }}
+          IMAGE_SCAN: ${{ steps.image-scan.outcome }}
+        run: |
+          if [ "$DEPENDENCY_SCAN" != "success" ] || [ "$IMAGE_SCAN" != "success" ]; then
+            echo "Security scan failed; refusing to publish."
+            exit 1
+          fi
+      - name: Push scanned image tags
+        env:
+          IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          while IFS= read -r tag; do
+            [ -z "$tag" ] || docker push "$tag"
+          done <<< "$IMAGE_TAGS"
