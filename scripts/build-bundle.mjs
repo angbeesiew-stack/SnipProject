@@ -139,17 +139,21 @@ async function main() {
     throw new Error("Unable to inspect staged bundle changes.");
   }
 
-  run("git", ["add", "bundle"], root);
-  const mainDiff = spawnSync("git", ["diff", "--cached", "--quiet", "--", "bundle"], {
-    cwd: root,
-  });
+  run("git", ["add", "backend", "frontend", "cli", "bundle"], root);
+  const mainDiff = spawnSync(
+    "git",
+    ["diff", "--cached", "--quiet", "--", "backend", "frontend", "cli", "bundle"],
+    {
+      cwd: root,
+    },
+  );
   if (mainDiff.status === 1) {
     run(
       "git",
       [
         "commit",
         "-m",
-        "Bump generated bundle submodule",
+        "Update generated bundle and component submodules",
         "-m",
         "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>",
         "-m",
@@ -157,11 +161,11 @@ async function main() {
       ],
       root,
     );
-    console.log("Committed bundle gitlink update.");
+    console.log("Committed component and bundle gitlink updates.");
   } else if (mainDiff.status === 0) {
-    console.log("Bundle gitlink unchanged.");
+    console.log("Component and bundle gitlinks unchanged.");
   } else {
-    throw new Error("Unable to inspect staged bundle gitlink changes.");
+    throw new Error("Unable to inspect staged submodule gitlink changes.");
   }
 
   if (push) {
