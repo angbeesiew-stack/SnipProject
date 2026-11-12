@@ -40,6 +40,12 @@ cd cli && node cli.js ls
 
 The backend listens on port 3000 by default; the Angular development server uses port 4200. Both clients call the backend at `http://localhost:3000`.
 
+## Bundle and release
+
+`bundle/` is generated from the latest `backend`, `frontend`, and `cli` branch tips by `node scripts/build-bundle.mjs`. It updates the bundle branch and its `main` gitlink locally; add `--push` to publish those changes. The script is designed to be idempotent, so repeating it without source changes is a no-op.
+
+The bundle workflow runs hourly or manually, not on push: source branch pushes do not trigger a workflow that exists only on `main`. The Docker workflow watches the `bundle` gitlink on `main` and can also be started manually. Because an Actions push made with `GITHUB_TOKEN` does not trigger a second push workflow, the bundle workflow explicitly dispatches the Docker workflow after its push.
+
 ## Updating a component
 
 Commit and push changes from inside that component's checkout, then update and commit the submodule pointer from `main`:
